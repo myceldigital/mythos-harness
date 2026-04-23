@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mythos Console</title>
+    <link rel="stylesheet" href="/app/static/app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="left-rail">
+        <div class="brand-block">
+          <div class="brand-title">Mythos Console</div>
+          <div class="brand-subtitle">Elite orchestration interface</div>
+        </div>
+
+        <button id="newSessionBtn" class="btn btn-primary">+ New Conversation</button>
+
+        <div class="settings-block">
+          <label class="field-label" for="apiBaseUrlInput">API Base URL</label>
+          <input id="apiBaseUrlInput" class="text-input" type="text" placeholder="http://127.0.0.1:8080" />
+
+          <label class="field-label" for="apiKeyInput">API Key (optional)</label>
+          <input id="apiKeyInput" class="text-input" type="password" placeholder="x-api-key / bearer token" />
+        </div>
+
+        <div class="sessions-header">
+          <span>Conversations</span>
+          <span id="sessionCountBadge" class="badge">0</span>
+        </div>
+        <div id="sessionsList" class="sessions-list"></div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <h1 id="activeTitle" class="active-title">Conversation</h1>
+            <div class="topbar-subrow">
+              <span id="threadIdTag" class="chip">thread: -</span>
+              <span id="healthTag" class="chip chip-muted">health: unknown</span>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="copyTranscriptBtn" class="btn">Copy Transcript</button>
+            <button id="clearSessionBtn" class="btn btn-danger">Clear</button>
+          </div>
+        </header>
+
+        <section id="messageTimeline" class="message-timeline"></section>
+
+        <footer class="composer">
+          <textarea
+            id="composerInput"
+            class="composer-input"
+            rows="1"
+            placeholder="Ask Mythos anything... (Ctrl/Cmd + Enter to send)"
+          ></textarea>
+          <div class="composer-controls">
+            <div id="sendHint" class="send-hint">Ctrl/Cmd + Enter</div>
+            <button id="sendBtn" class="btn btn-primary">Send</button>
+          </div>
+        </footer>
+      </main>
+
+      <aside class="right-rail">
+        <div class="panel-title">Run Telemetry</div>
+        <div id="runMetaCards" class="meta-grid"></div>
+        <div class="panel-title">Triage Details</div>
+        <pre id="triagePanel" class="json-panel">{}</pre>
+      </aside>
+    </div>
+
+    <template id="messageTemplate">
+      <article class="msg">
+        <div class="msg-head">
+          <span class="msg-role"></span>
+          <span class="msg-time"></span>
+        </div>
+        <div class="msg-body"></div>
+      </article>
+    </template>
+
+    <script src="/app/static/app.js" defer></script>
+  </body>
+</html>

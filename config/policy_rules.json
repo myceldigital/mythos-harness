@@ -1,0 +1,10 @@
+{
+  "blocked_terms": [
+    "direct self-harm instructions",
+    "malware deployment payload"
+  ],
+  "revision_required_terms": [
+    "legal advice disclaimer needed",
+    "medical diagnosis certainty"
+  ]
+}
