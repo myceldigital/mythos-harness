@@ -3,11 +3,14 @@
 
   const SESSION_KEY = "mythos.console.sessions.v1";
   const SETTINGS_KEY = "mythos.console.settings.v1";
+  const MAX_ACTIVITY = 80;
 
   const dom = {
     newSessionBtn: document.getElementById("newSessionBtn"),
     sessionsList: document.getElementById("sessionsList"),
     sessionCountBadge: document.getElementById("sessionCountBadge"),
+    statusBadge: document.getElementById("statusBadge"),
+    statusText: document.getElementById("statusText"),
     activeTitle: document.getElementById("activeTitle"),
     threadIdTag: document.getElementById("threadIdTag"),
     healthTag: document.getElementById("healthTag"),
@@ -18,8 +21,16 @@
     sendBtn: document.getElementById("sendBtn"),
     runMetaCards: document.getElementById("runMetaCards"),
     triagePanel: document.getElementById("triagePanel"),
+    payloadPanel: document.getElementById("payloadPanel"),
+    activityList: document.getElementById("activityList"),
+    tabs: Array.from(document.querySelectorAll(".tab")),
+    tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
+    saveConfigBtn: document.getElementById("saveConfigBtn"),
+    testConnectionBtn: document.getElementById("testConnectionBtn"),
     apiBaseUrlInput: document.getElementById("apiBaseUrlInput"),
     apiKeyInput: document.getElementById("apiKeyInput"),
+    executionModeInput: document.getElementById("executionModeInput"),
+    constraintsInput: document.getElementById("constraintsInput"),
     messageTemplate: document.getElementById("messageTemplate"),
   };
 
@@ -29,7 +40,10 @@
     settings: {
       apiBaseUrl: window.location.origin,
       apiKey: "",
+      executionMode: "",
+      constraintsRaw: "",
     },
+    activity: [],
     pending: false,
   };
 
@@ -59,6 +73,8 @@
     };
     dom.apiBaseUrlInput.value = state.settings.apiBaseUrl;
     dom.apiKeyInput.value = state.settings.apiKey;
+    dom.executionModeInput.value = state.settings.executionMode || "";
+    dom.constraintsInput.value = state.settings.constraintsRaw || "";
   }
 
   function bindEvents() {
@@ -67,6 +83,7 @@
       state.sessions.unshift(session);
       state.activeSessionId = session.id;
       persistSessions();
+      logActivity("ok", "session", "Created new conversation");
       render();
     });
 
@@ -80,15 +97,24 @@
     dom.composerInput.addEventListener("input", autoSizeComposer);
     dom.copyTranscriptBtn.addEventListener("click", copyTranscript);
     dom.clearSessionBtn.addEventListener("click", clearActiveSession);
+    dom.saveConfigBtn.addEventListener("click", saveSettingsFromInputs);
+    dom.testConnectionBtn.addEventListener("click", testConnection);
     dom.apiBaseUrlInput.addEventListener("blur", () => {
-      state.settings.apiBaseUrl = normalizeBaseUrl(dom.apiBaseUrlInput.value);
-      dom.apiBaseUrlInput.value = state.settings.apiBaseUrl;
-      persistSettings();
+      const updated = normalizeBaseUrl(dom.apiBaseUrlInput.value);
+      dom.apiBaseUrlInput.value = updated;
+      if (state.settings.apiBaseUrl !== updated) {
+        state.settings.apiBaseUrl = updated;
+        persistSettings();
+        logActivity("ok", "config", `API base URL set to ${updated}`);
+      }
       probeHealth();
     });
-    dom.apiKeyInput.addEventListener("blur", () => {
-      state.settings.apiKey = dom.apiKeyInput.value.trim();
-      persistSettings();
+    dom.apiKeyInput.addEventListener("blur", syncAndPersistSettings);
+    dom.executionModeInput.addEventListener("change", syncAndPersistSettings);
+    dom.constraintsInput.addEventListener("blur", syncAndPersistSettings);
+
+    dom.tabs.forEach((tab) => {
+      tab.addEventListener("click", () => activateTab(tab.dataset.tab || "overview"));
     });
   }
 
@@ -102,7 +128,7 @@
         {
           role: "assistant",
           content:
-            "Welcome to Mythos Console. Ask a question to run the orchestration loop.",
+            "Welcome to Mythos Console. Ask a question to run Mythos orchestration.",
           created_at: now,
         },
       ],
@@ -115,6 +141,7 @@
   function render() {
     renderSessions();
     renderActiveSession();
+    renderActivity();
     autoSizeComposer();
   }
 
@@ -132,6 +159,7 @@
       `;
       item.addEventListener("click", () => {
         state.activeSessionId = session.id;
+        logActivity("ok", "session", `Switched to "${session.title}"`);
         render();
       });
       dom.sessionsList.appendChild(item);
@@ -171,10 +199,12 @@
 
   function renderMeta(result) {
     const items = [
-      ["loops", result ? String(result.loops ?? "-") : "-"],
-      ["halt_reason", result ? String(result.halt_reason ?? "-") : "-"],
-      ["overall_conf", result ? formatConfidence(result.confidence_summary) : "-"],
-      ["trajectory_id", result ? String(result.trajectory_id ?? "-") : "-"],
+      ["Loops", result ? String(result.loops ?? "-") : "-"],
+      ["Halt Reason", result ? String(result.halt_reason ?? "-") : "-"],
+      ["Overall Confidence", result ? formatConfidence(result.confidence_summary) : "-"],
+      ["Trajectory ID", result ? String(result.trajectory_id ?? "-") : "-"],
+      ["Task Type", result ? String(result.triage?.task_type ?? "-") : "-"],
+      ["Citations", result && Array.isArray(result.citations) ? String(result.citations.length) : "0"],
     ];
     dom.runMetaCards.innerHTML = "";
     items.forEach(([label, value]) => {
@@ -190,9 +220,11 @@
       null,
       2
     );
+    renderPayloadPreview(result ? result.request_payload || {} : {});
   }
 
   async function submitPrompt() {
+    syncSettingsFromInputs();
     const session = getActiveSession();
     const prompt = dom.composerInput.value.trim();
     if (!session || !prompt || state.pending) {
@@ -200,6 +232,7 @@
     }
     state.pending = true;
     dom.sendBtn.disabled = true;
+    setRunStatus("running", "Running");
     appendMessage(session, {
       role: "user",
       content: prompt,
@@ -217,24 +250,21 @@
     render();
 
     try {
+      const constraints = parseConstraints();
       const payload = {
         query: prompt,
         thread_id: session.thread_id,
-        constraints: {},
+        constraints,
       };
-      const response = await fetch(
-        `${state.settings.apiBaseUrl}/v1/mythos/complete`,
-        {
-          method: "POST",
-          headers: buildHeaders(),
-          body: JSON.stringify(payload),
-        }
+      payload.constraints = applyExecutionModeConstraint(
+        payload.constraints,
+        state.settings.executionMode
       );
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status} - ${truncate(errorText, 240)}`);
-      }
-      const result = await response.json();
+      renderPayloadPreview(payload);
+      logActivity("ok", "request", `POST /v1/mythos/stream for ${session.thread_id}`);
+
+      const result = await streamCompletion(payload, session, placeholder);
+      result.request_payload = payload;
       session.thread_id = result.thread_id || session.thread_id;
       session.last_result = result;
       placeholder.content = result.final_answer || "No answer returned.";
@@ -244,6 +274,12 @@
       }
       session.updated_at = new Date().toISOString();
       persistSessions();
+      setRunStatus("online", "Ready");
+      logActivity(
+        "ok",
+        "response",
+        `Run complete · loops=${result.loops ?? "-"} · halt=${result.halt_reason ?? "-"}`
+      );
       render();
     } catch (error) {
       placeholder.content =
@@ -251,11 +287,115 @@
       placeholder.error = true;
       session.updated_at = new Date().toISOString();
       persistSessions();
+      setRunStatus("error", "Error");
+      logActivity(
+        "error",
+        "request",
+        error instanceof Error ? error.message : String(error)
+      );
       render();
     } finally {
       state.pending = false;
       dom.sendBtn.disabled = false;
     }
+  }
+
+  async function streamCompletion(payload, session, placeholder) {
+    const response = await fetch(
+      `${state.settings.apiBaseUrl}/v1/mythos/stream`,
+      {
+        method: "POST",
+        headers: {
+          ...buildHeaders(),
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status} - ${truncate(errorText, 240)}`);
+    }
+    if (!response.body) {
+      throw new Error("Streaming unavailable: empty response body.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalPayload = null;
+    let streamError = null;
+    let renderQueued = false;
+    let tokenStarted = false;
+
+    const scheduleRender = () => {
+      if (renderQueued) {
+        return;
+      }
+      renderQueued = true;
+      window.setTimeout(() => {
+        renderQueued = false;
+        render();
+      }, 24);
+    };
+
+    const onEvent = (eventName, payloadObj) => {
+      if (eventName === "token") {
+        if (!tokenStarted) {
+          placeholder.content = "";
+          tokenStarted = true;
+        }
+        placeholder.content += payloadObj.text || "";
+        scheduleRender();
+        return;
+      }
+      if (eventName === "replace") {
+        placeholder.content = payloadObj.text || placeholder.content;
+        scheduleRender();
+        return;
+      }
+      if (eventName === "status") {
+        if (payloadObj.stage === "loop_start") {
+          logActivity(
+            "ok",
+            "loop",
+            `Loop ${payloadObj.loop ?? "?"} · phase=${payloadObj.phase ?? "unknown"}`
+          );
+        }
+        if (payloadObj.stage === "feedback_done" && payloadObj.trajectory_id) {
+          logActivity("ok", "trajectory", `Recorded ${payloadObj.trajectory_id}`);
+        }
+        return;
+      }
+      if (eventName === "final") {
+        finalPayload = payloadObj;
+        return;
+      }
+      if (eventName === "error") {
+        streamError = payloadObj.message || "Unknown stream error.";
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replaceAll("\r\n", "\n");
+      buffer = processSseBuffer(buffer, onEvent);
+    }
+    buffer += decoder.decode();
+    buffer = buffer.replaceAll("\r\n", "\n");
+    processSseBuffer(buffer, onEvent);
+
+    if (streamError) {
+      throw new Error(streamError);
+    }
+    if (!finalPayload) {
+      throw new Error("Stream ended without final payload.");
+    }
+    return finalPayload;
   }
 
   function buildHeaders() {
@@ -285,6 +425,7 @@
     session.last_result = null;
     session.updated_at = new Date().toISOString();
     persistSessions();
+    logActivity("warn", "session", `Cleared conversation "${session.title}"`);
     render();
   }
 
@@ -299,11 +440,13 @@
     try {
       await navigator.clipboard.writeText(lines.join("\n\n"));
       dom.copyTranscriptBtn.textContent = "Copied";
+      logActivity("ok", "clipboard", "Transcript copied");
       window.setTimeout(() => {
         dom.copyTranscriptBtn.textContent = "Copy Transcript";
       }, 1200);
     } catch {
       dom.copyTranscriptBtn.textContent = "Copy Failed";
+      logActivity("error", "clipboard", "Clipboard write failed");
       window.setTimeout(() => {
         dom.copyTranscriptBtn.textContent = "Copy Transcript";
       }, 1200);
@@ -312,13 +455,19 @@
 
   async function probeHealth() {
     try {
-      const response = await fetch(`${state.settings.apiBaseUrl}/healthz`);
+      const response = await fetch(`${state.settings.apiBaseUrl}/readyz`);
       const ok = response.ok;
       dom.healthTag.textContent = ok ? "health: online" : "health: degraded";
       dom.healthTag.classList.toggle("chip-muted", !ok);
+      if (ok) {
+        setRunStatus(state.pending ? "running" : "online", state.pending ? "Running" : "Ready");
+      } else {
+        setRunStatus("warn", "Degraded");
+      }
     } catch {
       dom.healthTag.textContent = "health: offline";
       dom.healthTag.classList.add("chip-muted");
+      setRunStatus("error", "Offline");
     }
   }
 
@@ -333,6 +482,152 @@
       dom.composerInput.scrollHeight,
       220
     )}px`;
+  }
+
+  async function testConnection() {
+    syncSettingsFromInputs();
+    persistSettings();
+    const base = state.settings.apiBaseUrl;
+    logActivity("ok", "connection", `Testing ${base}`);
+    try {
+      const health = await fetch(`${base}/healthz`);
+      const ready = await fetch(`${base}/readyz`);
+      const details = `healthz=${health.status} readyz=${ready.status}`;
+      if (health.ok && ready.ok) {
+        logActivity("ok", "connection", `Connection passed · ${details}`);
+        setRunStatus(state.pending ? "running" : "online", state.pending ? "Running" : "Ready");
+      } else {
+        logActivity("warn", "connection", `Connection degraded · ${details}`);
+        setRunStatus("warn", "Degraded");
+      }
+      probeHealth();
+    } catch (error) {
+      logActivity(
+        "error",
+        "connection",
+        `Connection failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      setRunStatus("error", "Offline");
+    }
+  }
+
+  function saveSettingsFromInputs() {
+    syncSettingsFromInputs();
+    persistSettings();
+    logActivity("ok", "config", "Configuration saved");
+    probeHealth();
+  }
+
+  function syncSettingsFromInputs() {
+    const nextBase = normalizeBaseUrl(dom.apiBaseUrlInput.value);
+    state.settings = {
+      apiBaseUrl: nextBase,
+      apiKey: dom.apiKeyInput.value.trim(),
+      executionMode: (dom.executionModeInput.value || "").trim(),
+      constraintsRaw: dom.constraintsInput.value.trim(),
+    };
+    dom.apiBaseUrlInput.value = nextBase;
+  }
+
+  function syncAndPersistSettings() {
+    syncSettingsFromInputs();
+    persistSettings();
+  }
+
+  function activateTab(tabName) {
+    dom.tabs.forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.tab === tabName);
+    });
+    dom.tabPanels.forEach((panel) => {
+      panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+    });
+  }
+
+  function renderPayloadPreview(payload) {
+    dom.payloadPanel.textContent = JSON.stringify(payload || {}, null, 2);
+  }
+
+  function logActivity(level, kind, message) {
+    const entry = {
+      id: `a-${Math.random().toString(36).slice(2, 9)}`,
+      at: new Date().toISOString(),
+      level,
+      kind,
+      message,
+    };
+    state.activity.unshift(entry);
+    if (state.activity.length > MAX_ACTIVITY) {
+      state.activity.length = MAX_ACTIVITY;
+    }
+    renderActivity();
+  }
+
+  function renderActivity() {
+    if (!dom.activityList) {
+      return;
+    }
+    if (state.activity.length === 0) {
+      dom.activityList.innerHTML = `<div class="activity-entry"><div class="activity-msg">No activity yet.</div></div>`;
+      return;
+    }
+    dom.activityList.innerHTML = state.activity
+      .map((entry) => {
+        const safeMessage = escapeHtml(entry.message);
+        const safeKind = escapeHtml(entry.kind);
+        const safeTime = escapeHtml(formatTime(entry.at));
+        return `
+          <article class="activity-entry ${entry.level}">
+            <div class="activity-head">
+              <span class="activity-kind">${safeKind}</span>
+              <span class="activity-time">${safeTime}</span>
+            </div>
+            <div class="activity-msg">${safeMessage}</div>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function setRunStatus(level, text) {
+    dom.statusBadge.classList.remove("online", "running", "warn", "error");
+    if (level === "online") {
+      dom.statusBadge.classList.add("online");
+    } else if (level === "running") {
+      dom.statusBadge.classList.add("running");
+    } else if (level === "warn") {
+      dom.statusBadge.classList.add("warn");
+    } else if (level === "error") {
+      dom.statusBadge.classList.add("error");
+    }
+    dom.statusText.textContent = text;
+  }
+
+  function parseConstraints() {
+    const raw = state.settings.constraintsRaw.trim();
+    if (!raw) {
+      return {};
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        logActivity("warn", "config", "Constraints ignored: expected JSON object");
+        return {};
+      }
+      return parsed;
+    } catch {
+      logActivity("warn", "config", "Constraints ignored: invalid JSON");
+      return {};
+    }
+  }
+
+  function applyExecutionModeConstraint(constraints, mode) {
+    if (!mode) {
+      return constraints;
+    }
+    return {
+      ...constraints,
+      execution_mode_hint: mode,
+    };
   }
 
   function getActiveSession() {
@@ -366,6 +661,17 @@
     return date.toLocaleString();
   }
 
+  function formatTime(value) {
+    if (!value) {
+      return "-";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleTimeString();
+  }
+
   function formatConfidence(map) {
     if (!map || typeof map !== "object") {
       return "-";
@@ -396,6 +702,7 @@
       .map((block) => {
         const lines = block.split("\n");
         const isList = lines.every((line) => /^[-*]\s+/.test(line.trim()));
+        const isOrderedList = lines.every((line) => /^\d+\.\s+/.test(line.trim()));
         if (isList) {
           const items = lines
             .map((line) => line.trim().replace(/^[-*]\s+/, ""))
@@ -403,9 +710,65 @@
             .join("");
           return `<ul>${items}</ul>`;
         }
+        if (isOrderedList) {
+          const items = lines
+            .map((line) => line.trim().replace(/^\d+\.\s+/, ""))
+            .map((line) => `<li>${line}</li>`)
+            .join("");
+          return `<ol>${items}</ol>`;
+        }
         return `<p>${lines.join("<br/>")}</p>`;
       })
       .join("");
+  }
+
+  function processSseBuffer(buffer, onEvent) {
+    let working = buffer;
+    while (true) {
+      const delimiterIndex = working.indexOf("\n\n");
+      if (delimiterIndex === -1) {
+        break;
+      }
+      const eventBlock = working.slice(0, delimiterIndex).trim();
+      working = working.slice(delimiterIndex + 2);
+      if (!eventBlock) {
+        continue;
+      }
+      const parsed = parseSseEvent(eventBlock);
+      if (!parsed) {
+        continue;
+      }
+      onEvent(parsed.event, parsed.payload);
+    }
+    return working;
+  }
+
+  function parseSseEvent(eventBlock) {
+    const lines = eventBlock.split(/\r?\n/);
+    let eventName = "message";
+    const dataLines = [];
+    for (const line of lines) {
+      if (line.startsWith("event:")) {
+        eventName = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trim());
+      }
+    }
+    if (dataLines.length === 0) {
+      return null;
+    }
+    const rawPayload = dataLines.join("\n");
+    try {
+      return {
+        event: eventName,
+        payload: JSON.parse(rawPayload),
+      };
+    } catch {
+      return {
+        event: eventName,
+        payload: { value: rawPayload },
+      };
+    }
   }
 
   function truncate(value, maxLen) {
@@ -434,4 +797,7 @@
       return fallback;
     }
   }
+
+  logActivity("ok", "system", "Mythos Console ready");
+  setRunStatus("online", "Ready");
 })();

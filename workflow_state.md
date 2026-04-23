@@ -4,21 +4,18 @@
 > Coordination pattern: Planner -> Worker -> Judge
 
 ## Current Objective
-Deliver a production-quality, user-facing chat UI for Mythos Harness so the system is directly usable without raw API calls.
+Add true assistant token streaming so `/app` renders progressive output over SSE instead of waiting for a full blocking response.
 
 ## Planner Packet Queue
-1. **UI application shell**
-   - Add web app route and static serving from FastAPI.
-   - Success criteria: browser loads a complete chat interface at a stable URL.
-2. **Elite chat UX**
-   - Build responsive chat timeline, composer, session/thread controls, metadata cards, and markdown answer rendering.
-   - Success criteria: users can conduct multi-turn chats with persistent local history and visible run diagnostics.
-3. **API integration**
-   - Wire UI to `/v1/mythos/complete` with auth-key support and strong error/retry UX.
-   - Success criteria: end-to-end interaction works without manual curl calls.
-4. **Verification + judge pass**
-   - Add tests for UI serving and run targeted suite.
-   - Success criteria: tests/lint pass and docs/changelog updated.
+1. **Planner packet: streaming architecture**
+   - Choose transport and flow for progressive output without breaking existing completion API.
+   - Success criteria: clear plan for provider-level token streaming + API/UI integration.
+2. **Worker packet: backend + frontend streaming path**
+   - Add provider streaming interface, orchestration stream execution, SSE endpoint, and UI stream consumer.
+   - Success criteria: assistant message visibly updates token-by-token in `/app`.
+3. **Judge packet: verification + docs**
+   - Add stream route tests and run targeted validation; update repo docs and institutional notes.
+   - Success criteria: tests/lint green and docs reflect streaming capabilities.
 
 ## Execution Log
 - 2026-04-22 Planner: Initial packet queue authored.
@@ -59,3 +56,14 @@ Deliver a production-quality, user-facing chat UI for Mythos Harness so the syst
 - 2026-04-23 Worker: Added UI serving tests (`tests/test_ui.py`) and updated package build config to include web assets.
 - 2026-04-23 Worker: Verification passed (`python3 -m pytest -q tests/test_ui.py tests/test_api.py tests/test_middleware.py tests/test_retry.py tests/test_session_similarity.py tests/test_embeddings.py tests/test_factories.py tests/test_branch_manager.py tests/test_structured_state.py tests/test_triage.py`, `python3 -m compileall src`).
 - 2026-04-23 Judge: Decision `stop` — elite chat UI packet complete.
+- 2026-04-22 Planner: Reopened workflow for premium UI refinement packet based on external reference design (without debug console elements).
+- 2026-04-22 Worker: Reworked `/app` structure + visual system with premium typography, security banner, status badge, stronger panel hierarchy, and responsive layout updates.
+- 2026-04-22 Worker: Extended frontend behavior with tabbed run insights, request payload preview, connection test action, execution mode hint + constraints JSON controls, and lightweight activity feed.
+- 2026-04-22 Worker: Verification passed (`python3 -m pytest tests/test_ui.py -q`, `python3 -m compileall src`).
+- 2026-04-22 Judge: Decision `stop` — UI refinement packet complete with no API contract changes.
+- 2026-04-22 Planner: Reopened workflow for true streaming output packet (SSE/WebSocket-class progressive rendering requirement).
+- 2026-04-22 Worker: Added provider streaming interface and implementations (`stream_complete`) for local, routed, and OpenAI-compatible backends.
+- 2026-04-22 Worker: Added orchestrator stream execution and `POST /v1/mythos/stream` SSE endpoint with staged events, token deltas, replacement events, and final payload emission.
+- 2026-04-22 Worker: Updated `/app` request flow to consume SSE over `fetch`, append token deltas live, and finalize with streamed payload metadata.
+- 2026-04-22 Worker: Added SSE API coverage (`tests/test_api.py::test_stream_route_emits_sse_events`) and verified (`python3 -m pytest tests/test_api.py tests/test_ui.py -q`, `python3 -m compileall src`).
+- 2026-04-22 Judge: Decision `stop` — true streaming packet complete.

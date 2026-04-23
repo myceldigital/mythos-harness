@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import AsyncIterator
 
 from mythos_harness.providers.base import ModelProvider
 
@@ -32,6 +33,23 @@ class LocalDeterministicProvider(ModelProvider):
             return {"content": messages[-1]["content"]}
         return {"content": "Deterministic provider response."}
 
+    async def stream_complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> AsyncIterator[str]:
+        response = await self.complete(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        for chunk in _chunk_text(response["content"]):
+            yield chunk
+
     def _triage_response(self, prompt: str) -> dict[str, object]:
         task_type = "analysis"
         if "code" in prompt or "debug" in prompt:
@@ -59,3 +77,12 @@ class LocalDeterministicProvider(ModelProvider):
             "needs_tools": True,
             "needs_retrieval": True,
         }
+
+
+def _chunk_text(text: str, *, size: int = 20) -> list[str]:
+    if not text:
+        return []
+    chunks: list[str] = []
+    for idx in range(0, len(text), size):
+        chunks.append(text[idx : idx + size])
+    return chunks

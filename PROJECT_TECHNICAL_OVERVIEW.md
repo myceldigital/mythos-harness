@@ -40,7 +40,7 @@ flowchart LR
 
 ## 4. Source Tree Blueprint
 - `src/mythos_harness/main.py`: App bootstrap, dependency wiring, health endpoint.
-- `src/mythos_harness/api/router.py`: REST entrypoint and response shaping.
+- `src/mythos_harness/api/router.py`: REST entrypoint and response shaping, including SSE stream endpoint for progressive answers.
 - `src/mythos_harness/core/state.py`: Structured latent schema + runtime state machine fields.
 - `src/mythos_harness/core/triage.py`: Front-door classification and execution-mode estimation.
 - `src/mythos_harness/core/branch_manager.py`: Hypothesis branching, pruning, and collapse.
@@ -50,15 +50,15 @@ flowchart LR
 - `src/mythos_harness/core/feedback.py`: Passive trajectory logger.
 - `src/mythos_harness/graph/builder.py`: LangGraph assembly and loop routing.
 - `src/mythos_harness/providers/factory.py`: Provider backend selection (`local`, `openai_compatible`, `openrouter`) + judge override.
-- `src/mythos_harness/providers/openai_compatible.py`: API-key based chat completion adapter for OpenAI-compatible APIs.
+- `src/mythos_harness/providers/openai_compatible.py`: API-key based chat completion adapter for OpenAI-compatible APIs, including SSE token streaming support.
 - `src/mythos_harness/providers/routed.py`: Model-role routing (judge model can use separate provider family).
 - `src/mythos_harness/embeddings/factory.py`: Embedding backend selection (`local`, `openai_compatible`, `openrouter`).
 - `src/mythos_harness/embeddings/openai_compatible.py`: API-key based embedding adapter.
 - `src/mythos_harness/api/middleware.py`: API key auth + pluggable rate-limit middleware (memory/redis).
 - `src/mythos_harness/api/observability.py`: request IDs, structured access logs, and Prometheus metrics wiring.
 - `src/mythos_harness/web/index.html`: primary chat UI shell served at `/app`.
-- `src/mythos_harness/web/static/app.css`: responsive visual system for elite console UX.
-- `src/mythos_harness/web/static/app.js`: session management, API requests, markdown rendering, and telemetry panel logic.
+- `src/mythos_harness/web/static/app.css`: premium responsive design system (security notice, status badge, tabbed insights, telemetry cards, activity styling).
+- `src/mythos_harness/web/static/app.js`: session management, API requests, connection testing, request payload preview, constraints/execution-mode controls, and activity event feed.
 - `src/mythos_harness/storage/factory.py`: Session/policy/trajectory backend selection.
 - `scripts/apply_migrations.py`: idempotent SQL migration runner with checksum tracking.
 - `sql/bootstrap_postgres.sql`: pgvector/Postgres schema bootstrap for externalized state and trajectories.
@@ -76,13 +76,21 @@ flowchart LR
 8. Feedback loop writes trajectory record for offline evaluation workflows.
 9. Middleware stack adds request IDs, access logs, auth/rate-limit checks, and metrics instrumentation.
 10. Web console at `/app` drives interactive usage and calls `/v1/mythos/complete`.
+11. Streaming-capable clients can call `/v1/mythos/stream` and consume SSE events (`status`, `token`, `replace`, `final`, `done`) for progressive rendering.
 
 ## 6. Config & Operations
 - Environment variables use `MYTHOS_` prefix (`.env.example` included).
 - User-facing endpoints:
   - `/app` interactive chat console
   - `/app/static/*` web assets
+  - `POST /v1/mythos/complete` blocking JSON completion
+  - `POST /v1/mythos/stream` SSE progressive completion
   - `/docs` OpenAPI UI
+- `/app` UX capabilities:
+  - persistent multi-session chat timeline mapped to `thread_id`
+  - run configuration controls (API base URL, API key, execution mode hint, constraints JSON)
+  - connection check against `/healthz` + `/readyz`
+  - tabbed run insights (overview metrics, triage JSON, request payload, activity feed)
 - Provider backends:
   - primary: `MYTHOS_PROVIDER_BACKEND=local|openai_compatible|openrouter`
   - optional judge override: `MYTHOS_JUDGE_PROVIDER_BACKEND=...`

@@ -4,44 +4,85 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mythos Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/app/static/app.css" />
   </head>
   <body>
+    <div class="security-note">
+      <strong>Security note:</strong> API keys are stored in your browser local storage for convenience.
+      Use scoped keys and rotate shared credentials.
+    </div>
+
+    <header class="page-header">
+      <div>
+        <h1>Mythos Console</h1>
+        <p class="subtitle">Elite orchestration workspace for Mythos Harness v0.3</p>
+      </div>
+      <div id="statusBadge" class="status-badge">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">Idle</span>
+      </div>
+    </header>
+
     <div class="app-shell">
       <aside class="left-rail">
-        <div class="brand-block">
-          <div class="brand-title">Mythos Console</div>
-          <div class="brand-subtitle">Elite orchestration interface</div>
-        </div>
-
-        <button id="newSessionBtn" class="btn btn-primary">+ New Conversation</button>
-
-        <div class="settings-block">
+        <section class="card">
+          <h2 class="card-title">Run Configuration</h2>
           <label class="field-label" for="apiBaseUrlInput">API Base URL</label>
           <input id="apiBaseUrlInput" class="text-input" type="text" placeholder="http://127.0.0.1:8080" />
 
           <label class="field-label" for="apiKeyInput">API Key (optional)</label>
-          <input id="apiKeyInput" class="text-input" type="password" placeholder="x-api-key / bearer token" />
-        </div>
+          <input id="apiKeyInput" class="text-input" type="password" placeholder="x-api-key or bearer token" />
 
-        <div class="sessions-header">
-          <span>Conversations</span>
-          <span id="sessionCountBadge" class="badge">0</span>
-        </div>
-        <div id="sessionsList" class="sessions-list"></div>
+          <label class="field-label" for="executionModeInput">Execution Mode Hint</label>
+          <select id="executionModeInput" class="text-input">
+            <option value="">Auto</option>
+            <option value="fast">Fast</option>
+            <option value="normal">Normal</option>
+            <option value="deep">Deep</option>
+            <option value="exhaustive">Exhaustive</option>
+          </select>
+
+          <label class="field-label" for="constraintsInput">Constraints JSON (optional)</label>
+          <textarea
+            id="constraintsInput"
+            class="text-input"
+            rows="5"
+            placeholder='{"audience":"engineering leadership","style":"concise"}'
+          ></textarea>
+
+          <div class="config-actions">
+            <button id="saveConfigBtn" class="btn">Save Config</button>
+            <button id="testConnectionBtn" class="btn btn-secondary">Test Connection</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="sessions-header">
+            <h2 class="card-title">Conversations</h2>
+            <span id="sessionCountBadge" class="badge">0</span>
+          </div>
+          <button id="newSessionBtn" class="btn btn-primary full-width">+ New Conversation</button>
+          <div id="sessionsList" class="sessions-list"></div>
+        </section>
       </aside>
 
       <main class="main-panel">
-        <header class="topbar">
+        <header class="conversation-header">
           <div>
-            <h1 id="activeTitle" class="active-title">Conversation</h1>
-            <div class="topbar-subrow">
+            <h2 id="activeTitle" class="active-title">Conversation</h2>
+            <div class="conversation-meta">
               <span id="threadIdTag" class="chip">thread: -</span>
               <span id="healthTag" class="chip chip-muted">health: unknown</span>
             </div>
           </div>
-          <div class="topbar-actions">
-            <button id="copyTranscriptBtn" class="btn">Copy Transcript</button>
+          <div class="conversation-actions">
+            <button id="copyTranscriptBtn" class="btn btn-secondary">Copy Transcript</button>
             <button id="clearSessionBtn" class="btn btn-danger">Clear</button>
           </div>
         </header>
@@ -56,17 +97,38 @@
             placeholder="Ask Mythos anything... (Ctrl/Cmd + Enter to send)"
           ></textarea>
           <div class="composer-controls">
-            <div id="sendHint" class="send-hint">Ctrl/Cmd + Enter</div>
+            <div class="send-hint">Ctrl/Cmd + Enter</div>
             <button id="sendBtn" class="btn btn-primary">Send</button>
           </div>
         </footer>
       </main>
 
       <aside class="right-rail">
-        <div class="panel-title">Run Telemetry</div>
-        <div id="runMetaCards" class="meta-grid"></div>
-        <div class="panel-title">Triage Details</div>
-        <pre id="triagePanel" class="json-panel">{}</pre>
+        <section class="card">
+          <h2 class="card-title">Run Insights</h2>
+          <div class="tabs">
+            <button class="tab active" data-tab="overview">Overview</button>
+            <button class="tab" data-tab="triage">Triage</button>
+            <button class="tab" data-tab="payload">Payload</button>
+            <button class="tab" data-tab="activity">Activity</button>
+          </div>
+
+          <div id="tab-overview" class="tab-panel active">
+            <div id="runMetaCards" class="meta-grid"></div>
+          </div>
+
+          <div id="tab-triage" class="tab-panel">
+            <pre id="triagePanel" class="json-panel">{}</pre>
+          </div>
+
+          <div id="tab-payload" class="tab-panel">
+            <pre id="payloadPanel" class="json-panel">{}</pre>
+          </div>
+
+          <div id="tab-activity" class="tab-panel">
+            <div id="activityList" class="activity-list"></div>
+          </div>
+        </section>
       </aside>
     </div>
 

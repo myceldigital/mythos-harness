@@ -202,6 +202,9 @@ export MYTHOS_RETRY_JITTER_S=0.05
 - `POST /v1/mythos/complete`
   - Input: query, optional thread id, optional constraints.
   - Output: final answer, confidence summary, citations, loop metadata, trajectory id.
+- `POST /v1/mythos/stream`
+  - Input: query, optional thread id, optional constraints.
+  - Output: Server-Sent Events stream (`status`, `token`, `replace`, `final`, `done`) for progressive rendering.
 
 ## Operational Notes
 
@@ -225,6 +228,9 @@ This repo provides a production-shaped scaffold with deterministic local behavio
 
 - High-fidelity conversation interface at `/app`
 - Local session persistence with multi-thread switching
-- Inline run telemetry (loops, halt reason, confidence, trajectory id)
-- Built-in API base URL + API key controls for secured deployments
+- Tabbed run insights (overview, triage payload, request payload, activity feed)
+- Inline run telemetry (loops, halt reason, confidence, trajectory id, task type, citations)
+- Built-in API base URL + API key + execution mode + constraints controls
+- One-click connection test (`/healthz` + `/readyz`) for deployment validation
+- True live assistant streaming over SSE (`/v1/mythos/stream`) with token-by-token rendering
 - Markdown rendering for model responses

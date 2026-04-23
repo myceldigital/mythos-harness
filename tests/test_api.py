@@ -33,6 +33,20 @@ def test_complete_route_smoke() -> None:
     assert "overall" in payload["confidence_summary"]
 
 
+def test_stream_route_emits_sse_events() -> None:
+    client = TestClient(create_app())
+    with client.stream(
+        "POST",
+        "/v1/mythos/stream",
+        json={"query": "Build a migration plan", "thread_id": "stream-thread"},
+    ) as response:
+        assert response.status_code == 200
+        body = "".join(chunk for chunk in response.iter_text())
+    assert "event: token" in body
+    assert "event: final" in body
+    assert "event: done" in body
+
+
 def test_metrics_endpoint() -> None:
     client = TestClient(create_app())
     response = client.get("/metrics")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -73,6 +74,68 @@ class OpenAICompatibleProvider(ModelProvider):
         body = response.json()
         return {"content": _extract_content(body)}
 
+    async def stream_complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> AsyncIterator[str]:
+        payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": True,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            **self.extra_headers,
+        }
+        emitted = False
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                ) as response:
+                    if response.status_code >= 400:
+                        error_body = await response.aread()
+                        decoded = error_body.decode("utf-8", errors="replace")
+                        raise RuntimeError(
+                            f"Provider request failed ({response.status_code}): {decoded}"
+                        )
+                    async for raw_line in response.aiter_lines():
+                        line = raw_line.strip()
+                        if not line or not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        delta = _extract_stream_delta(data)
+                        if delta:
+                            emitted = True
+                            yield delta
+        except httpx.HTTPError as exc:
+            raise RuntimeError(f"Provider streaming request failed: {exc}") from exc
+
+        if emitted:
+            return
+
+        fallback = await self.complete(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        text = fallback.get("content", "")
+        if text:
+            yield text
+
 
 class _HttpResponseError(Exception):
     def __init__(self, *, status_code: int, body: str):
@@ -104,3 +167,26 @@ def _extract_content(payload: dict[str, Any]) -> str:
                     chunks.append(text)
         return "\n".join(chunks).strip()
     return str(content or "")
+
+
+def _extract_stream_delta(raw_data: str) -> str:
+    try:
+        payload = json.loads(raw_data)
+    except json.JSONDecodeError:
+        return ""
+    choices = payload.get("choices") or []
+    if not choices:
+        return ""
+    delta = choices[0].get("delta") or {}
+    content = delta.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    chunks.append(text)
+        return "".join(chunks)
+    return ""

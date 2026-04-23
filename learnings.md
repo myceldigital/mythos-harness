@@ -31,6 +31,14 @@
   **Rationale:** docs/API-only interaction limits adoption and product feel.  
   **Alternatives considered:** separate frontend repo was deferred to avoid deployment complexity in early OSS phases.  
   **Impact:** `/app` now provides production-grade operator UX directly from the same service artifact.
+- [2026-04-22] – UI refinement follows “backend-grounded premium UX” rule  
+  **Rationale:** visual richness should reflect only data the API actually exposes, avoiding misleading debug theater.  
+  **Alternatives considered:** importing full reference UI features (branch economy/governor diagnostics) was rejected because those signals are not emitted by current endpoint responses.  
+  **Impact:** upgraded `/app` keeps premium interaction quality while remaining truthful and maintainable.
+- [2026-04-22] – Streaming architecture uses additive endpoint (`/v1/mythos/stream`) rather than mutating `/complete`  
+  **Rationale:** preserve backward compatibility for existing clients while enabling progressive UX in the web app.  
+  **Alternatives considered:** replacing `/complete` with streaming was rejected because many integrations expect a single JSON response body.  
+  **Impact:** both blocking and streaming consumers are supported without forked business logic.
 
 ## Patterns & Conventions Established
 - [2026-04-22] – Phase-keyed loop as first-class runtime state  
@@ -57,6 +65,12 @@
 - [2026-04-23] – Local-persistent session UX pattern in browser  
   **When to use:** Multi-turn orchestration testing without backend-side user account/session model.  
   **Example:** UI stores conversation state + endpoint/auth settings in localStorage and maps each conversation to a `thread_id`.
+- [2026-04-22] – Request-shaping controls via constraints JSON + execution mode hint  
+  **When to use:** Need per-run steering without changing backend code or environment config.  
+  **Example:** UI emits `constraints` from JSON editor and injects `execution_mode_hint` when selected.
+- [2026-04-22] – SSE over `fetch` for authenticated POST streaming  
+  **When to use:** Need token streaming with custom headers/body (`x-api-key`, JSON payload) where native `EventSource` is too limited.  
+  **Example:** frontend `streamCompletion()` calls `/v1/mythos/stream` via `fetch` and parses SSE frames from `ReadableStream`.
 
 ## Gotchas & Solutions
 - [2026-04-22] – Empty local git dir vs populated remote  
@@ -75,6 +89,14 @@
   **Root cause:** Backend selection evaluated before `enabled` guard.  
   **Solution:** Build Redis limiter only when rate limiting is enabled; otherwise default to in-memory no-op path.  
   **Code snippet:** `if enabled: self._limiter = self._build_limiter(...) else: InMemoryRateLimiter()`
+- [2026-04-22] – Payload preview can silently drift if request state is not persisted before send  
+  **Root cause:** UI settings edited in inputs but not synchronized into in-memory state before constructing request payload.  
+  **Solution:** Sync settings from form inputs at submit-time and connection-test-time before serialization.  
+  **Code snippet:** `syncSettingsFromInputs(); const constraints = parseConstraints();`
+- [2026-04-22] – Safety revision can invalidate already-streamed coda tokens  
+  **Root cause:** final post-coda safety gate may rewrite `final_answer` after stream emission starts.  
+  **Solution:** emit streaming `replace` event after safety when answer changed, and let UI replace in-flight content atomically.  
+  **Code snippet:** `if runtime.final_answer != streamed_answer: yield ("replace", {"text": runtime.final_answer})`
 
 ## Tech Stack / Tooling Nuances
 - [2026-04-22] – LangGraph dependency can trigger resolver churn without upper bounds  

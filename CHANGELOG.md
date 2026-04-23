@@ -13,6 +13,8 @@
 - 2026-04-22 – Final hardening packet: added vector migration SQL (16->1536 safe path), similarity retrieval in session/prelude flow, API auth + rate-limit middleware, and retry/backoff wrappers for provider/store adapters. Rationale: close production-readiness gaps around safety, resilience, and memory quality.
 - 2026-04-22 – Enterprise final form pass: added Redis distributed rate limiting, request-id/structured logs/Prometheus metrics, readiness probes with dependency checks, and idempotent migration runner with tracking. Rationale: make runtime operationally safe for scaled production deployment.
 - 2026-04-23 – Added elite chat web UI at `/app` with persistent conversations, telemetry panels, markdown rendering, and API-key aware request flow. Rationale: deliver first-class product UX beyond raw API/docs interaction.
+- 2026-04-22 – Refined `/app` into a premium operator console with redesigned visual system, status model, connection testing, tabbed insights, payload preview, and constraints/execution mode controls (without debug console clutter). Rationale: improve production usability and trust while staying aligned to real backend signals.
+- 2026-04-22 – Added true progressive assistant streaming via `POST /v1/mythos/stream` (SSE events + token deltas) and updated `/app` to render tokens live with safe final replacement after safety rewrites. Rationale: remove blocking wait UX and provide real-time answer visibility without breaking existing `/complete` clients.
 
 ## [Past Releases]
 *(Entries move here during version releases)*

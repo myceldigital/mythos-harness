@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import AsyncIterator, Protocol
 
 
 @dataclass(slots=True)
@@ -19,4 +19,14 @@ class ModelProvider(Protocol):
         max_tokens: int = 512,
         temperature: float = 0.2,
     ) -> dict[str, str]:
+        ...
+
+    async def stream_complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> AsyncIterator[str]:
         ...
