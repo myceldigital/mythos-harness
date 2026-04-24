@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mythos_harness.config import Settings
+from mythos_harness.core.json_utils import extract_first_json_object, safe_json_parse
 from mythos_harness.providers.base import ModelProvider
 
 
@@ -42,11 +42,4 @@ class FrontDoorTriage:
         )
 
 
-def safe_json_parse(raw: str, fallback: dict[str, Any]) -> dict[str, Any]:
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            return parsed
-    except json.JSONDecodeError:
-        pass
-    return fallback
+__all__ = ["FrontDoorTriage", "extract_first_json_object", "safe_json_parse"]
