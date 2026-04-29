@@ -1,6 +1,6 @@
 # PROJECT TECHNICAL OVERVIEW
 
-> Last updated: 2026-04-22  
+> Last updated: 2026-04-29  
 > Maintained by Cursor AI (updates after every meaningful change)
 
 ## 1. Project Overview
@@ -125,3 +125,4 @@ flowchart LR
 - Install: `python3 -m pip install -e ".[dev]"`
 - Tests: `python3 -m pytest -q`
 - Lint sanity: `python3 -m compileall src`
+- Cursor Cloud setup: install missing runner tools (`just`, `zsh`) first if absent, then use `just install` and `just run`.

@@ -1,21 +1,21 @@
 # Workflow State
 
-> Last updated: 2026-04-22
+> Last updated: 2026-04-29
 > Coordination pattern: Planner -> Worker -> Judge
 
 ## Current Objective
-Add true assistant token streaming so `/app` renders progressive output over SSE instead of waiting for a full blocking response.
+Set up the Cursor Cloud development environment, run Mythos Harness locally, and prove the application responds through documented health/API/UI endpoints.
 
 ## Planner Packet Queue
-1. **Planner packet: streaming architecture**
-   - Choose transport and flow for progressive output without breaking existing completion API.
-   - Success criteria: clear plan for provider-level token streaming + API/UI integration.
-2. **Worker packet: backend + frontend streaming path**
-   - Add provider streaming interface, orchestration stream execution, SSE endpoint, and UI stream consumer.
-   - Success criteria: assistant message visibly updates token-by-token in `/app`.
-3. **Judge packet: verification + docs**
-   - Add stream route tests and run targeted validation; update repo docs and institutional notes.
-   - Success criteria: tests/lint green and docs reflect streaming capabilities.
+1. **Planner packet: environment discovery**
+   - Inspect setup docs, task runner, Python requirements, and existing project knowledge files.
+   - Success criteria: identify the smallest reliable local setup path.
+2. **Worker packet: dependency install + service startup**
+   - Install missing runner tools if needed, install Python package in editable dev mode, and run FastAPI service via documented commands.
+   - Success criteria: local server is reachable on port 8080.
+3. **Judge packet: verification + handoff**
+   - Run documented checks and probe health/API/UI endpoints; update knowledge docs with environment findings.
+   - Success criteria: commands pass, evidence proves app works, and docs record the setup.
 
 ## Execution Log
 - 2026-04-22 Planner: Initial packet queue authored.
@@ -67,3 +67,5 @@ Add true assistant token streaming so `/app` renders progressive output over SSE
 - 2026-04-22 Worker: Updated `/app` request flow to consume SSE over `fetch`, append token deltas live, and finalize with streamed payload metadata.
 - 2026-04-22 Worker: Added SSE API coverage (`tests/test_api.py::test_stream_route_emits_sse_events`) and verified (`python3 -m pytest tests/test_api.py tests/test_ui.py -q`, `python3 -m compileall src`).
 - 2026-04-22 Judge: Decision `stop` — true streaming packet complete.
+- 2026-04-29 Planner: Reopened workflow for Cursor Cloud development environment setup and runtime demonstration.
+- 2026-04-29 Worker: Installed missing VM runner tools (`just`, `zsh`), installed Python dev dependencies with `just install`, ran documented tests/lint, started `just run` in tmux, and verified `/healthz`, `/readyz`, `/app`, `/metrics`, `/v1/mythos/complete`, and `/v1/mythos/stream`.
