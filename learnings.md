@@ -1,6 +1,6 @@
 # Project Learnings
 
-> Last updated: 2026-04-22
+> Last updated: 2026-04-29
 
 ## Architectural Decisions
 - [2026-04-22] – Local `Desktop/mythos harness` aligned to GitHub `myceldigital/mythos-harness`  
@@ -71,6 +71,9 @@
 - [2026-04-22] – SSE over `fetch` for authenticated POST streaming  
   **When to use:** Need token streaming with custom headers/body (`x-api-key`, JSON payload) where native `EventSource` is too limited.  
   **Example:** frontend `streamCompletion()` calls `/v1/mythos/stream` via `fetch` and parses SSE frames from `ReadableStream`.
+- [2026-04-29] – Cursor Cloud setup follows documented `just` tasks after runner bootstrap  
+  **When to use:** Fresh cloud VM setup for local development.  
+  **Example:** install missing `just`/`zsh` system tools, then run `just install`, `just test`, `just lint`, and `just run`.
 
 ## Gotchas & Solutions
 - [2026-04-22] – Empty local git dir vs populated remote  
@@ -97,6 +100,10 @@
   **Root cause:** final post-coda safety gate may rewrite `final_answer` after stream emission starts.  
   **Solution:** emit streaming `replace` event after safety when answer changed, and let UI replace in-flight content atomically.  
   **Code snippet:** `if runtime.final_answer != streamed_answer: yield ("replace", {"text": runtime.final_answer})`
+- [2026-04-29] – Headless Chrome can write the UI screenshot but remain attached in Cursor Cloud  
+  **Root cause:** Chrome DevTools profile handling kept the browser process alive after `--screenshot`.  
+  **Solution:** verify the screenshot artifact exists, then stop only the specific Chrome and wrapper PIDs.  
+  **Code snippet:** `google-chrome --headless --no-sandbox --disable-gpu --screenshot=/opt/cursor/artifacts/mythos_dev_ui_loaded.png http://127.0.0.1:8080/app`
 
 ## Tech Stack / Tooling Nuances
 - [2026-04-22] – LangGraph dependency can trigger resolver churn without upper bounds  
@@ -105,6 +112,9 @@
 - [2026-04-22] – `asyncpg` works cleanly for async Postgres/pgvector adapters  
   **Key insight:** Store adapters can remain fully async and self-initialize schema/table setup.  
   **Best practice:** keep Postgres DSN/config centralized in env and bootstrap with `sql/bootstrap_postgres.sql`.
+- [2026-04-29] – Cloud VM base image had Python and tmux but not `just` or `zsh`  
+  **Key insight:** the repo's `justfile` uses `set shell := ["zsh", "-cu"]`, so both tools are required before task execution.  
+  **Best practice:** install `just` and `zsh` once on fresh VMs, then use the documented task runner path.
 
 ## Performance & Optimization Notes
 - *(empty)*

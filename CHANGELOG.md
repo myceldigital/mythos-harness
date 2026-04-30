@@ -1,6 +1,6 @@
 # CHANGELOG
 
-> Last updated: 2026-04-22  
+> Last updated: 2026-04-29  
 > Automatically maintained by Cursor AI. Every change gets a concise entry.
 
 ## [Unreleased]
@@ -15,6 +15,7 @@
 - 2026-04-23 – Added elite chat web UI at `/app` with persistent conversations, telemetry panels, markdown rendering, and API-key aware request flow. Rationale: deliver first-class product UX beyond raw API/docs interaction.
 - 2026-04-22 – Refined `/app` into a premium operator console with redesigned visual system, status model, connection testing, tabbed insights, payload preview, and constraints/execution mode controls (without debug console clutter). Rationale: improve production usability and trust while staying aligned to real backend signals.
 - 2026-04-22 – Added true progressive assistant streaming via `POST /v1/mythos/stream` (SSE events + token deltas) and updated `/app` to render tokens live with safe final replacement after safety rewrites. Rationale: remove blocking wait UX and provide real-time answer visibility without breaking existing `/complete` clients.
+- 2026-04-29 – Verified Cursor Cloud dev setup with documented `just` tasks, local uvicorn startup, endpoint probes, and UI screenshot artifact. Rationale: prove the development environment is runnable and record setup evidence.
 
 ## [Past Releases]
 *(Entries move here during version releases)*
