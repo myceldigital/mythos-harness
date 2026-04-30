@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 
-class EvidenceSourceType(StrEnum):
+class EvidenceSourceType(str, Enum):
     """Where an evidence source came from."""
 
     DOCUMENT = "document"
@@ -25,7 +25,7 @@ class EvidenceSourceType(StrEnum):
     OTHER = "other"
 
 
-class EvidenceReliability(StrEnum):
+class EvidenceReliability(str, Enum):
     """Coarse reliability score used before domain-specific scoring exists."""
 
     UNKNOWN = "unknown"
@@ -34,7 +34,7 @@ class EvidenceReliability(StrEnum):
     HIGH = "high"
 
 
-class EvidenceAdmissibility(StrEnum):
+class EvidenceAdmissibility(str, Enum):
     """Whether a source may be used in a decision memo."""
 
     PENDING = "pending"
