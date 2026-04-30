@@ -10,14 +10,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from mythos_harness.decision.evidence_pack import EvidencePack
 
 
-class RunStatus(StrEnum):
+class RunStatus(str, Enum):
     """Lifecycle state for a decision run."""
 
     DRAFT = "draft"
