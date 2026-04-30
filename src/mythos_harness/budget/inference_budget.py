@@ -8,11 +8,11 @@ marginal cost.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from uuid import uuid4
 
 
-class EscalationPolicy(StrEnum):
+class EscalationPolicy(str, Enum):
     """How aggressively a run may spend additional inference."""
 
     NEVER = "never"
