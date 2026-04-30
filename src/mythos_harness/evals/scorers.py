@@ -7,12 +7,12 @@ baseline direct calls comparable with Mythos-wrapped runs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 
-class ScoreDimension(StrEnum):
+class ScoreDimension(str, Enum):
     """Dimensions used to test decision-quality uplift."""
 
     FACTUALITY = "factuality"
