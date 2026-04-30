@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 
-class ReviewStatus(StrEnum):
+class ReviewStatus(str, Enum):
     """State of the human review workflow."""
 
     NOT_REQUESTED = "not_requested"
@@ -18,7 +18,7 @@ class ReviewStatus(StrEnum):
     DECIDED = "decided"
 
 
-class ReviewDecision(StrEnum):
+class ReviewDecision(str, Enum):
     """Reviewer decision values."""
 
     APPROVE = "approve"
