@@ -1,0 +1,46 @@
+## The prompt
+
+> The Aurora Ruling
+>
+> A 48-hour programming contest uses the following rules. Rules are strictly enforced in the order they appear:
+>
+> Rule §4. Any submission made in the final 2 hours of the contest (at true contest time ≥ 46:00) receives a 15% score penalty.
+>
+> Rule §9. Any submission made after an official "no further submissions" announcement is *invalid* and scores 0, regardless of whether the announcement is subsequently rescinded.
+>
+> You are given the following facts:
+>
+> 1. The official contest timer runs 7 minutes behind true time. (When the timer reads 10:00, the true time is 10:07. This has been confirmed by the timer-audit panel.)
+> 2. Team Aurora's submission was logged at timer-reading 46:15.
+> 3. The chief judge issued a "no further submissions" announcement at timer-reading 45:55.
+> 4. That announcement was rescinded 10 minutes later at timer-reading 46:05.
+> 5. Team Aurora's un-penalised raw score is 88/100.
+> 6. The public leaderboard currently shows Team Aurora with a final score of 88/100.
+>
+> Produce exactly this output:
+> - final_score: a single number.
+> - confidence: 0–100.
+> - reasoning_chain: numbered steps, each step citing which fact or rule it uses.
+> - inconsistencies_detected: list any facts that contradict each other or contradict the rules.
+
+## What's actually happening inside it
+
+The three answers a reasoner can land on:
+
+| Depth | Answer | Path |
+|---|---|---|
+| Surface | 88 | Trust the leaderboard (Fact 6). |
+| Medium | 74.80 | Apply Rule §4 timer-penalty (88 × 0.85), miss Rule §9. |
+| Correct | 0 | Convert timer 46:15 → true 46:22. Announcement was at true 46:02. Submission at 46:22 is *after* the announcement. Rule §9 invalidates it "regardless of subsequent rescission" — the rescission at true 46:12 is explicitly irrelevant. Leaderboard is wrong. |
+
+The planted contradiction: the leaderboard (Fact 6) contradicts the rules. A base model often defers to the authoritative-looking leaderboard or stops after applying the more obvious Rule §4. The harness earns its cost specifically on the §9 path because the verify phase re-reads the rule text and catches "regardless of subsequent rescission."
+
+## Scoring rubric (Liang's insistence)
+
+| Dimension | Points | What earns full marks |
+|---|---|---|
+| Correctness | 0–4 | final_score = 0 |
+| Trap detection | 0–2 | Flags the leaderboard as inconsistent with the rules |
+| Calibration | 0–2 | Confidence ≥ 70% *only if* answer is 0; confidence ≤ 40% if they landed on 88 or 74.80 |
+| Faithfulness | 0–2 | reasoning_chain actually computes the stated final_score without hand-waving |
+| Total | 0–10 | |

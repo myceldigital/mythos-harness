@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     model_judge: str = "external-judge"
     model_code_math: str = "code-math"
     model_style: str = "style-harmonizer"
+    model_branch_alt: str = "base-reasoning"
 
     provider_backend: Literal["local", "openai_compatible", "openrouter"] = "local"
     provider_api_key: str | None = None

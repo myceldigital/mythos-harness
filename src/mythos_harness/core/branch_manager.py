@@ -9,8 +9,9 @@ from mythos_harness.providers.base import ModelProvider
 class BranchManager:
     """Maintains competing hypotheses and prunes weak branches."""
 
-    def __init__(self, max_branches: int = 3):
+    def __init__(self, max_branches: int = 3, branch_model: str = "branch-alt"):
         self.max_branches = max_branches
+        self.branch_model = branch_model
 
     async def step(self, state: StructuredState, provider: ModelProvider) -> StructuredState:
         if state.should_branch() and len(state.active_hypotheses()) < self.max_branches:
@@ -33,7 +34,7 @@ class BranchManager:
     ) -> Hypothesis:
         basis = state.top_hypothesis().answer if state.top_hypothesis() else "No basis hypothesis."
         response = await provider.complete(
-            model="branch-alt",
+            model=self.branch_model,
             messages=[
                 {
                     "role": "user",

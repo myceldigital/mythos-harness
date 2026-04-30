@@ -40,11 +40,15 @@ class MythosOrchestrator:
             settings.trajectory_store_path
         )
         self.policy_store = policy_store or PolicyStore(settings.policy_path)
-        self.branch_manager = BranchManager(max_branches=settings.max_branches)
+        self.branch_manager = BranchManager(
+            max_branches=settings.max_branches,
+            branch_model=settings.model_branch_alt,
+        )
         self.triage = FrontDoorTriage()
-        self.prelude = PreludeBuilder()
+        self.prelude = PreludeBuilder(provider, settings)
         self.phase_loop = PhaseLoop(provider, self.branch_manager, settings)
         self.coda = CodaBuilder(provider, self.branch_manager, settings)
+
         self.safety = SafetyGate(self.policy_store, provider, settings)
         self.feedback = FeedbackLoop(self.trajectory_store)
         self.graph = build_runtime_graph(
